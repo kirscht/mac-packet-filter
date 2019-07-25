@@ -1,0 +1,71 @@
+---
+#- name: mac-pf-conf-setup
+#  hosts: all
+#  become: yes###
+#
+#  vars_files:
+#    - ~/secret
+#
+#  vars:
+#    ansible_become_pass: '{{ su_password }}'
+#
+#  tasks:
+
+  - name: Create /etc/my_pf.conf
+    copy:
+      src: files/etc/pf.conf
+      dest: /etc/my_pf.conf
+      owner: root
+      group: wheel
+      mode: 0644
+    delegate_to: localhost
+    register: my_pf
+
+  - name: Debug my_pf
+    debug:
+      msg="{{ my_pf }}"
+    when: my_pf.changed
+
+  - name: Add Include File
+    lineinfile:
+      path: /etc/pf.conf
+      line: 'include "/etc/my_pf.conf"'
+      insertafter: EOF
+      backup: yes
+    delegate_to: localhost
+    register: pf_conf
+
+  - name: Debug my_pf
+    debug:
+      msg="{{ pf_conf }}"
+    when: pf_conf.changed or my_pf.changed
+
+  - name: Reload Firewall
+    command: '{{ item }}'
+    with_items:
+      - pfctl -f /etc/pf.conf
+      - pfctl -d
+      - pfctl -e
+    delegate_to: localhost
+    when: my_pf.changed or pf_conf.changed
+    register: output
+
+  - name: Debug Restart PF
+    debug:
+      msg="{{ output }}"
+    when: output.changed
+
+  - name: Info - Rules
+    command: 'pfctl -s all'
+    register: output
+    check_mode: no
+
+  - name: Info - Rules (stderr)
+    debug:
+      msg="{{ output.stderr_lines }}"
+    when: output.stderr_lines is defined
+
+  - name: Info - Rules (stdout)
+    debug:
+      msg="{{ output.stdout_lines }}"
+    when: output.stdout_lines is defined
