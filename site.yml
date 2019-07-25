@@ -1,0 +1,14 @@
+---
+- name: Configure Firewall
+  hosts: localhost
+  gather_facts: false
+  become: true
+  vars_files:
+      - ~/secret
+  vars:
+      ansible_become_pass: '{{ su_password }}'
+  tasks:
+      - import_role:
+          name: pf
+
+
